@@ -25,11 +25,20 @@
     <form method="POST">
       <h4>Missing Person Type</h4>
       <select ="Missing Person Type" id="missing_person">
+        {% comment %}
         <option value="DAT" id="type">DAT</option>
-        <option value="Child" id="type">Child</option>
+        {% endcomment %}
+        <option value="Hiking" id="type">Hiking</option>
       </select>
       <h4>Point Last Seen</h4>
-      <label for="latitude">Latitude: </label>
+      <select ="Sample Inputs" id="sample_inputs">
+        <option value="Manhattan" id="sample_inputs">Manhattan</option>
+        <option value="Bronx" id="sample_inputs">Bronx</option>
+        <option value="Peekskill" id="sample_inputs">Peekskill</option>
+        <option value="Rochester" id="sample_inputs">Rochester</option>
+        <option value="Albany" id="sample_inputs">Albany</option>
+      </select>
+      {% comment %} <label for="latitude">Latitude: </label>
       <input
         title="latitude"
         class="sidebar__input"
@@ -46,19 +55,20 @@
         name="lng"
         id="longitude"
       />
-      <br /><br />
+      {% endcomment %} <br /><br />
       <button type="button" onclick="onLoadConfigPress()">
         Find Missing Person
       </button>
-      {%csrf_token%}
-      <button type="button" onclick="run_function('yah', 'yeet')">Run</button>
+      {%csrf_token%} {% comment %}
+      <button type="button" onclick="predictHikers('yah', 'yeet')">Run</button>
+      {% endcomment %}
     </form>
 
     <script>
-      function run_function(param1, param2) {
+      function predictHikers(param1, param2) {
         data = {};
         $.ajax({
-          url: "random_url/", // the endpoint
+          url: "hikers/", // the endpoint
           type: "GET", // http method
           data: { param_first: param1, param_second: param2 }, // data sent with the get request
           async: false,
@@ -67,6 +77,7 @@
           success: function (json) {
             console.log("JSON = ", json.latitude, json.longitude); // another sanity check
             data = { latitude: json.latitude, longitude: json.longitude };
+            console.log(data);
           },
 
           // handle a non-successful response
@@ -84,39 +95,100 @@
       mapboxgl.accessToken = "{{ mapbox_access_token }}";
       var map = new mapboxgl.Map({
         container: "map", // container ID
-        style: "mapbox://styles/mapbox/streets-v11", // style URL
-        center: [-78.88945, 38.068585], // starting position [lng, lat] -78.88945, 38.068585 or -79.999732, 40.4374
-        zoom: 9, // starting zoom
+        style: "mapbox://styles/mapbox/outdoors-v12", // style URL
+        center: [-76.501884, 42.443962], // starting position [lng, lat] -78.88945, 38.068585 or -79.999732, 40.4374
+        zoom: 11, // starting zoom
         projection: "globe", // display the map as a 3D globe
       });
 
-      const predictedLoc = new mapboxgl.Marker().setLngLat([-78.88945, 38.068585]).addTo(map);
+      const predictedLoc = new mapboxgl.Marker().setLngLat([-76.501884, 42.443962]).addTo(map);
 
       function onLoadConfigPress() {
-        var longitude = document.getElementById('longitude').value;
-        var latitude = document.getElementById('latitude').value;
+        //var longitude = document.getElementById('longitude').value;
+        //var latitude = document.getElementById('latitude').value;
+        var latitude = 0;
+        var longitude = 0;
+        if (document.getElementById('sample_inputs').value === 'Manhattan') {
+          latitude = 40.730965;
+          longitude = -73.99207;
+        }
+        else if (document.getElementById('sample_inputs').value == 'Bronx') {
+          latitude = 40.826153;
+          longitude = -73.920265;
+        }
+        else if (document.getElementById('sample_inputs').value == 'Peekskill') {
+          latitude = 41.29091;
+          longitude = -73.92206;
+        }
+        else if (document.getElementById('sample_inputs').value == 'Rochester') {
+          latitude = 43.15478;
+          longitude = -77.61556;
+        }
+        else if (document.getElementById('sample_inputs').value == 'Albany') {
+          latitude = 42.652580;
+          longitude = -73.756233;
+        }
         var missing_person_type = document.getElementById('missing_person').value;
 
-        console.log("Type = " + missing_person_type)
+        console.log("Type = " + missing_person_type);
+        console.log("lat = " + latitude);
+        console.log("long = " + longitude);
 
         map.setCenter([longitude, latitude]);
 
-        data = run_function(latitude, longitude);
-        console.log("data = " + data.latitude, data.longitude);
-        predictedLoc.setLngLat([data.longitude, data.latitude]);
-
-        if (missing_person_type == "DAT")
+        if (!map.getSource('mapbox-terrain'))
         {
-          predictDAT(longitude, latitude);
+          map.addSource('mapbox-terrain', {
+            "type": "vector",
+            "url": "mapbox://mapbox.mapbox-terrain-v2"
+            })
         }
-        else if (missing_person_type == "Child")
-        {
-          predictChild();
-        }
-      }
 
-      function predictDAT(longitude, latitude) {
-        // If source doesn't exist, add the source
+        if (map.getLayer('landcover') !== undefined)
+        {
+          map.removeLayer('landcover');
+        }
+        map.addLayer({
+          "id": "landcover",
+          "source": "mapbox-terrain",
+          "source-layer": "landcover",
+          "type": "fill",
+          "paint": {
+          "fill-color": "rgba(66,100,251, 0.3)",
+          "fill-outline-color": "rgba(66,100,251, 1)"
+          }
+          });
+
+        if (!map.getLayer('hillshade') != undefined)
+        {
+          map.removeLayer('hillshade');
+        }
+        map.addLayer({
+          "id": "hillshade",
+          "source": "mapbox-terrain",
+          "source-layer": "hillshade",
+          "type": "fill",
+          "paint": {
+          "fill-color": "rgba(66,100,251, 0.3)",
+          "fill-outline-color": "rgba(66,100,251, 1)"
+          }
+          });
+
+        if (map.getLayer('contour') !== undefined)
+        {
+          map.removeLayer('contour');
+        }
+        map.addLayer({
+          "id": "contour",
+          "source": "mapbox-terrain",
+          "source-layer": "contour",
+          "type": "line",
+          "paint": {
+          "line-color": "#ffffff"
+          }
+          });
+
+        // If PLS source doesn't exist, add PLS source
         if (!map.getSource('pointLastSeen'))
         {
           map.addSource("pointLastSeen", {
@@ -133,7 +205,7 @@
             }
           });
         }
-        else // update the center location of exisiting source
+        else // update the center location of exisiting PLS
         {
           map.getSource("pointLastSeen").setData({
             "type": "geojson",
@@ -148,8 +220,37 @@
           });
         }
 
-        const metersToPixelsAtMaxZoom = (meters, latitude) =>
-          meters / 0.075 / Math.cos(latitude * Math.PI / 180)
+        if (map.getLayer('Terrain') !== undefined)
+        {
+          map.removeLayer('Terrain');
+        }
+
+
+
+        if (missing_person_type == "DAT")
+        {
+          predictDAT(longitude, latitude);
+        }
+        else if (missing_person_type == "Hiking")
+        {
+          predictHiking(longitude, latitude);
+          predicted_location = predictHikers(latitude, longitude);
+          console.log(predicted_location);
+          console.log(predicted_location.latitude + " " + predicted_location.longitude)
+          predictedLoc.setLngLat([predicted_location.longitude, predicted_location.latitude]);
+          console.log("Predicted latitude = " + predicted_location.latitude + typeof(predicted_location.latitude));
+          console.log("Latitude = " + latitude + typeof(latitude))
+          console.log((predicted_location.latitude + Number(latitude))/2)
+          map.setCenter([(predicted_location.longitude + Number(longitude))/2, (predicted_location.latitude + Number(latitude))/2])
+        }
+
+        //map.setCenter([(longitude + predicted_location.longitude)/2, (latitude + predicted_location.latitude)/2])
+      }
+
+      const metersToPixelsAtMaxZoom = (meters, latitude) =>
+      meters / 0.075 / Math.cos(latitude * Math.PI / 180)
+
+      function predictDAT(longitude, latitude) {
 
         if (map.getLayer('outerCircle') !== undefined)
         {
@@ -197,8 +298,51 @@
 
       }
 
-      function predictChild() {
-        console.log("Child Heurisitics here");
+      function predictHiking(longitude, latitude) {
+
+        if (map.getLayer('outerCircle') !== undefined)
+        {
+          map.removeLayer('outerCircle');
+        }
+
+        map.addLayer({
+          "id": "outerCircle",
+          "type": "circle",
+          "source": "pointLastSeen",
+          "paint": {
+            "circle-radius": {
+              stops: [
+                [0, 0],
+                [20, metersToPixelsAtMaxZoom(1300, latitude)] // 1.3 km
+              ],
+              base: 2
+            },
+            "circle-color": "red",
+            "circle-opacity": 0.1
+          }
+        });
+
+        if (map.getLayer('middleCircle') !== undefined)
+        {
+          map.removeLayer('middleCircle');
+        }
+
+        map.addLayer({
+          "id": "middleCircle",
+          "type": "circle",
+          "source": "pointLastSeen",
+          "paint": {
+            "circle-radius": {
+              stops: [
+                [0, 0],
+                [20, metersToPixelsAtMaxZoom(800, latitude)] // 0.8 km
+              ],
+              base: 2
+            },
+            "circle-color": "red",
+            "circle-opacity": 0.2
+          }
+        });
       }
         // add heatmap layer here
 
